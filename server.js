@@ -197,8 +197,8 @@ app.get('/api/notifications', (req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on http://0.0.0.0:${PORT}`);
   console.log(`Admin key: ${ADMIN_KEY}`);
   console.log(`To restore a letter, use: DELETE /api/admin/opened-letters/:name with header x-admin-key`);
 });
