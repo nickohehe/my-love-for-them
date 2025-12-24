@@ -48,8 +48,8 @@ async function saveOpenedLetters(openedLetters) {
 }
 
 // Broadcast notification to all connected clients
-function broadcastNotification(name) {
-  const message = JSON.stringify({ type: 'letter-opened', name, timestamp: Date.now() });
+function broadcastNotification(data) {
+  const message = JSON.stringify({ timestamp: Date.now(), ...data });
   sseClients.forEach((client) => {
     try {
       client.write(`data: ${message}\n\n`);
@@ -64,12 +64,12 @@ function broadcastNotification(name) {
 function checkAdminKey(req, res, next) {
   const providedKey = (req.headers['x-admin-key'] || req.query.adminKey || '').trim();
   const expectedKey = ADMIN_KEY.trim();
-  
+
   if (providedKey !== expectedKey) {
     console.log(`Admin key mismatch. Provided: "${providedKey}", Expected: "${expectedKey}"`);
     return res.status(401).json({ error: 'Unauthorized: Invalid admin key' });
   }
-  
+
   next();
 }
 
@@ -88,13 +88,13 @@ app.get('/api/opened-letters', async (req, res) => {
 app.post('/api/opened-letters', async (req, res) => {
   try {
     const { name } = req.body;
-    
+
     if (!name) {
       return res.status(400).json({ error: 'Name is required' });
     }
 
     const openedLetters = await getOpenedLetters();
-    
+
     // Check if already opened
     if (openedLetters.includes(name)) {
       return res.json({ message: 'Letter already marked as opened', openedLetters });
@@ -105,7 +105,7 @@ app.post('/api/opened-letters', async (req, res) => {
     await saveOpenedLetters(openedLetters);
 
     // Broadcast notification to all connected clients
-    broadcastNotification(name);
+    broadcastNotification({ type: 'letter-opened', name });
 
     res.json({ message: 'Letter marked as opened', openedLetters });
   } catch (error) {
@@ -131,10 +131,10 @@ app.get('/api/admin/opened-letters', checkAdminKey, async (req, res) => {
 app.delete('/api/admin/opened-letters/:name', checkAdminKey, async (req, res) => {
   try {
     const { name } = req.params;
-    
+
     const openedLetters = await getOpenedLetters();
     const index = openedLetters.indexOf(name);
-    
+
     if (index === -1) {
       return res.status(404).json({ error: 'Letter not found in opened list' });
     }
@@ -143,9 +143,12 @@ app.delete('/api/admin/opened-letters/:name', checkAdminKey, async (req, res) =>
     openedLetters.splice(index, 1);
     await saveOpenedLetters(openedLetters);
 
-    res.json({ 
-      message: `Letter "${name}" has been restored and is now available again`, 
-      openedLetters 
+    // Broadcast restoration
+    broadcastNotification({ type: 'letter-restored', name });
+
+    res.json({
+      message: `Letter "${name}" has been restored and is now available again`,
+      openedLetters
     });
   } catch (error) {
     console.error('Error restoring letter:', error);
@@ -157,6 +160,10 @@ app.delete('/api/admin/opened-letters/:name', checkAdminKey, async (req, res) =>
 app.post('/api/admin/reset', checkAdminKey, async (req, res) => {
   try {
     await saveOpenedLetters([]);
+
+    // Broadcast reset
+    broadcastNotification({ type: 'all-restored' });
+
     res.json({ message: 'All letters have been restored' });
   } catch (error) {
     console.error('Error resetting letters:', error);
