@@ -9,7 +9,7 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-const ADMIN_KEY = process.env.ADMIN_KEY || 'admin-secret-key-change-me';
+const ADMIN_KEY = process.env.ADMIN_KEY || '032908';
 const DATA_FILE = path.join(__dirname, 'data', 'opened-letters.json');
 
 // Store connected SSE clients
