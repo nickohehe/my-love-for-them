@@ -11,6 +11,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const ADMIN_KEY = process.env.ADMIN_KEY || '032908';
 const DATA_FILE = path.join(__dirname, 'data', 'opened-letters.json');
+const LOGS_FILE = path.join(__dirname, 'data', 'activity-logs.json');
 
 // Store connected SSE clients
 const sseClients = new Set();
@@ -45,6 +46,25 @@ async function getOpenedLetters() {
 async function saveOpenedLetters(openedLetters) {
   await ensureDataDir();
   await fs.writeFile(DATA_FILE, JSON.stringify(openedLetters, null, 2), 'utf-8');
+}
+
+// Read activity logs
+async function getActivityLogs() {
+  try {
+    await ensureDataDir();
+    const data = await fs.readFile(LOGS_FILE, 'utf-8');
+    return JSON.parse(data);
+  } catch (error) {
+    return [];
+  }
+}
+
+// Append activity log
+async function appendActivityLog(entry) {
+  await ensureDataDir();
+  const logs = await getActivityLogs();
+  logs.push(entry);
+  await fs.writeFile(LOGS_FILE, JSON.stringify(logs, null, 2), 'utf-8');
 }
 
 // Broadcast notification to all connected clients
@@ -104,6 +124,13 @@ app.post('/api/opened-letters', async (req, res) => {
     openedLetters.push(name);
     await saveOpenedLetters(openedLetters);
 
+    // Log the activity
+    await appendActivityLog({
+      name,
+      timestamp: new Date().toISOString(),
+      action: 'OPENED'
+    });
+
     // Broadcast notification to all connected clients
     broadcastNotification({ type: 'letter-opened', name });
 
@@ -124,6 +151,17 @@ app.get('/api/admin/opened-letters', checkAdminKey, async (req, res) => {
   } catch (error) {
     console.error('Error reading opened letters:', error);
     res.status(500).json({ error: 'Failed to read opened letters' });
+  }
+});
+
+// GET /api/admin/activity-logs - Get activity logs (admin only)
+app.get('/api/admin/activity-logs', checkAdminKey, async (req, res) => {
+  try {
+    const logs = await getActivityLogs();
+    res.json({ logs });
+  } catch (error) {
+    console.error('Error reading activity logs:', error);
+    res.status(500).json({ error: 'Failed to read activity logs' });
   }
 });
 
