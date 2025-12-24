@@ -124,15 +124,17 @@ app.post('/api/opened-letters', async (req, res) => {
     openedLetters.push(name);
     await saveOpenedLetters(openedLetters);
 
+    const timestamp = new Date().toISOString();
+
     // Log the activity
     await appendActivityLog({
       name,
-      timestamp: new Date().toISOString(),
+      timestamp,
       action: 'OPENED'
     });
 
     // Broadcast notification to all connected clients
-    broadcastNotification({ type: 'letter-opened', name });
+    broadcastNotification({ type: 'letter-opened', name, isoTimestamp: timestamp });
 
     res.json({ message: 'Letter marked as opened', openedLetters });
   } catch (error) {
