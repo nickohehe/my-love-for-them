@@ -5,9 +5,12 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+import cors from 'cors';
+
 const app = express();
 const PORT = process.env.PORT || 8080;
 
+app.use(cors());
 app.use(express.json());
 
 // In-memory store for orders
